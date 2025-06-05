@@ -1,0 +1,34 @@
+library(tidyverse)
+library(lubridate)
+
+# Nest data is from the modified field data file.
+# MST split the species and common names for birds and plants
+# to separate columns.
+
+nest_raw <- read_csv(
+  file = "data/nest_data.csv",
+  skip = 1,
+  col_names = c(
+    "nest_id",
+    "date_recorded",
+    "common_bird",
+    "sci_bird",
+    "id_notes",
+    "common_plant",
+    "sci_plant",
+    "over_water",
+    "nest_height_in",
+    "nest_height_cm",
+    "eggs_hatchlings",
+    "notes",
+    "latitude",
+    "longitude"
+  )
+) |> 
+  mutate(
+    common_plant = str_replace_all(common_plant, pattern = "Wool Grass", replacement = "Woolgrass"),
+    common_plant = str_replace_all(common_plant, pattern = "Not specified", replacement = "-"),
+    common_plant = replace_na(common_plant, "-"),
+    sci_plant = replace_na(sci_plant, "-"),
+    )
+
