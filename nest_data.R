@@ -1,38 +1,65 @@
+# Run 1_nest_data.R before running this script.
+
 # library(tidyverse)
 # library(lubridate)
-# 
-# # Nest data is from the modified field data file.
-# # MST split the species and common names for birds and plants
-# # to separate columns.
-# 
-# nest_raw <- read_csv(
-#   file = "data/nest_data.csv",
-#   skip = 1,
-#   col_names = c(
-#     "nest_id",
-#     "date_recorded",
-#     "common_bird",
-#     "sci_bird",
-#     "id_notes",
-#     "common_plant",
-#     "sci_plant",
-#     "over_water",
-#     "nest_height_in",
-#     "nest_height_cm",
-#     "eggs_hatchlings",
-#     "notes",
-#     "latitude",
-#     "longitude"
-#   )
-# ) |> 
-#   mutate(common_plant = str_replace_all(common_plant, pattern = "Wool Grass", replacement = "Woolgrass"))
-# 
+library(RColorBrewer)
 
-nest_raw |> 
+# Create a plot showing distribution of nest heights
+
+# first, create a summary of mean nest height
+nest_sum <- nest_raw |> 
+  group_by(banding_code) |> 
+  summarize(n = mean(nest_height_cm, na.rm = TRUE)) |> 
+  replace_na(list(n = 0)) |> 
+  filter(banding_code != "INBU")
+
+
+
+height_distribution_plot <- nest_raw |> 
+  filter(banding_code != "INBU") |> 
+  group_by(banding_code) |> 
   ggplot() +
-  geom_point(aes(x = longitude, y = latitude))
+  geom_point(
+    aes(x = banding_code,
+        y = nest_height_cm,
+        color = banding_code,
+        fill = banding_code,
+        shape = banding_code)
+  ) +
+  geom_point(
+    data = nest_sum,
+    aes(x = banding_code,
+        y = n,
+        color = banding_code,
+        fill = banding_code,
+        shape = banding_code),
+    show.legend = FALSE,
+    size = 3,
+    alpha = 0.5
+  ) +
+  scale_color_brewer(palette = "Dark2", name = NULL) +
+  scale_fill_brewer(palette = "Dark2", name = NULL) +
+  scale_shape_manual(values = c(21:25), name = NULL) +
+  theme_minimal() +
+  labs(
+    x = NULL,
+    y = "Nest height (cm)"
+  )
+
+ggsave(
+  "height_distribution_plot.png",
+  height_distribution_plot,
+  width = 1600,
+  height = 900,
+  units = "px",
+  dpi = 300,
+  bg = "white"
+)
 
 
+# Tables ------------------------------------------------------------------
+
+# Make table of Species, Plant, Mean Nest Height, Number of Nests
 nest_tbl <- nest_raw |> 
   group_by(common_bird, common_plant) |> 
   summarize(mean_nest_height = mean(nest_height_cm, na.rm = TRUE),
@@ -44,9 +71,8 @@ nest_tbl <- nest_raw |>
 nest_tbl
 
 
-
-
-nest_raw |> 
+# Make table of Plant, Mean Nest Height, Number of nests
+plant_tbl <- nest_raw |> 
   group_by(common_plant) |> 
   summarize(mean_nest_height = mean(nest_height_cm, na.rm = TRUE),
             num_nests = n()) |> 
@@ -54,5 +80,89 @@ nest_raw |>
   filter(common_plant != "-") |> 
   print(n = 30)
 
+plant_tbl
+
+
+
+
+library(vegan)
+
+# Try removing unknown nests
+
+nest_mds_data <- 
+  nest_raw |> 
+  filter(banding_code != "UNK") |>  # Try removing unkown
+  filter(!is.na(nest_height_cm))
+
+
+
+nest_mds <- metaMDS(nest_mds_data[c(10,16,17)], k = 2)
+
+nest_vars <- as_tibble(scores(nest_mds)$species)
+nest_vars$vars <- row.names(scores(nest_mds)$species)
+
+nest_species <- as_tibble(scores(nest_mds)$sites)
+
+temp_var <- nest_raw |> 
+  filter(!is.na(nest_height_cm)) |> 
+  filter(banding_code != "UNK")
+
+nest_species$banding_code <- temp_var$banding_code
+
+nest_vars |> 
+  ggplot() +
+  geom_segment(
+    aes(
+      x = 0,
+      y = 0,
+      xend = NMDS1,
+      yend = NMDS2
+    ),
+    color = "gray80"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank()) +
+  geom_text(
+    aes(x = NMDS1,
+        y = NMDS2,
+        label = vars),
+    label = c("Nest height", "Over water", "Plant spp"),
+    hjust = "outward",
+    vjust = "outward"
+  ) +
+  geom_point(
+    data = nest_species,
+    aes(
+      x = NMDS1,
+      y = NMDS2,
+      color = banding_code,
+      fill = banding_code,
+      shape = banding_code
+    )
+  ) +
+  scale_x_continuous(
+    limits = c(-0.75, 1.4),
+    breaks = c(-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1)
+  ) +
+  scale_y_continuous(
+    limits = c(-0.5, 0.75),
+    breaks = c(-0.5, -0.25, 0, 0.25, 0.5)
+  ) +
+  scale_color_brewer(palette = "Dark2", name = NULL) +
+  scale_fill_brewer(palette = "Dark2", name = NULL) +
+  scale_shape_manual(values = c(21:25), name = NULL) +
+  labs(
+    x = "NMDS1",
+    y = "NMDS2"
+  ) 
+
+ggsave(
+  "nmds_plot.png",
+  width = 1600,
+  height = 900,
+  units = "px",
+  dpi = 300,
+  bg = "white"
+)
 
 
