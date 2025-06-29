@@ -61,14 +61,16 @@ ggsave(
 
 # Make table of Species, Plant, Mean Nest Height, Number of Nests
 nest_tbl <- nest_raw |> 
-  group_by(common_bird, common_plant) |> 
-  summarize(mean_nest_height = mean(nest_height_cm, na.rm = TRUE),
-            num_nests = n(),
+  group_by(common_bird, sci_plant) |> 
+  summarize(num_nests = n(),
+            mean_nest_height = mean(nest_height_cm, na.rm = TRUE),
             .groups = "keep") |> 
+  select(common_bird, num_nests, mean_nest_height, sci_plant) |> 
+  ungroup() |> 
+  group_by(common_bird) |> 
   arrange(desc(num_nests), .by_group = TRUE) |> 
-  print(n = 30)
-
-nest_tbl
+  write_csv("results/nest_tbl.csv")
+  
 
 
 # Make table of Plant, Mean Nest Height, Number of nests
@@ -78,9 +80,8 @@ plant_tbl <- nest_raw |>
             num_nests = n()) |> 
   arrange(desc(num_nests)) |> 
   filter(common_plant != "-") |> 
-  print(n = 30)
-
-plant_tbl
+  print(n = 30) |> 
+  write_csv("results/plant_heights.csv")
 
 
 
