@@ -168,3 +168,58 @@ nest_raw <- nest_raw |>
 #     common_plant == "Woolgrass" ~ 1
 #   )
 #   )
+
+
+
+
+
+# Nest plant use for RWBL -------------------------------------------------
+
+library(ggtext) # For markdown
+
+table_rwbl_plants <- nest_raw |>
+  filter(common_bird == "Red-winged Blackbird") |>
+  group_by(sci_plant) |>
+  summarise(n = n()) |>
+  mutate(sci_plant =
+           ifelse(n == 1, "Other", sci_plant)) |>
+  ungroup() |>
+  group_by(sci_plant) |>
+  summarise(n = sum(n)) |>
+  mutate(xtitle = case_when( # Add markdown for italics in plot
+    sci_plant == "Liquidambar styraciflua" ~ "*Liquidambar styraciflua*",
+    sci_plant == "Salix sp" ~ "*Salix* sp.",
+    sci_plant == "Typha sp" ~ "*Typha* sp.",
+    sci_plant == "Scirpus cyperinus" ~ "*Scirpus cyperinus*",
+    sci_plant == "Other" ~ "Other"
+  )) |> 
+  arrange(desc(n))
+
+# Plot of number of nests per plant species
+table_rwbl_plants |> 
+  ggplot() +
+  geom_point(
+    aes(
+      x = reorder(xtitle, desc(n)), 
+      y = n),
+    size = 2
+    ) +
+  scale_y_continuous(
+    limits = c(2, 11),
+    breaks = c(2, 4, 6, 8, 10)
+  ) +
+  theme_minimal() +
+  labs(
+    x = "Plant species",
+    y = "Number of nests") +
+  theme(axis.text.x = ggtext::element_markdown())
+
+ggsave(
+  filename = "rwbl_plant_use.png",
+  width = 2000,
+  height = 900,
+  units = "px",
+  dpi = 300,
+  bg = "white"
+)
+  
